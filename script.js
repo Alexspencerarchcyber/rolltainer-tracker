@@ -115,28 +115,33 @@ class RolltainerTracker {
             this.status = 'stopped';
             this.sessionCount = 0;
             this.seconds = 0;
+            this.updateTimerDisplay();
         }
     }
     
     checkAutoLogin() {
         const savedUser = localStorage.getItem('rolltainer_user');
         if (savedUser) {
-            const userData = JSON.parse(savedUser);
-            const now = Date.now();
-            
-            // Check if session is still valid (24 hours)
-            if (now - userData.timestamp < this.dataExpiry) {
-                this.currentUser = userData.name;
-                this.showMainApp(userData.name);
-                this.loadUserData(userData.name);
-                return;
-            } else {
-                // Session expired, clear old data
+            try {
+                const userData = JSON.parse(savedUser);
+                const now = Date.now();
+                
+                // Check if session is still valid (24 hours)
+                if (now - userData.timestamp < this.dataExpiry) {
+                    this.currentUser = userData.name;
+                    this.showMainApp(userData.name);
+                    this.loadUserData(userData.name);
+                    return;
+                } else {
+                    // Session expired, clear old data
+                    localStorage.removeItem('rolltainer_user');
+                    this.cleanExpiredData();
+                }
+            } catch (e) {
                 localStorage.removeItem('rolltainer_user');
-                // Clean up expired user data
-                this.cleanExpiredData();
             }
         }
+        // Show login screen
         this.loginScreen.style.display = 'flex';
         this.mainApp.style.display = 'none';
     }
@@ -176,6 +181,7 @@ class RolltainerTracker {
                     this.runningAverage = data.runningAverage || 0;
                     this.seconds = data.seconds || 0;
                     this.sessionCount = data.sessionCount || 0;
+                    this.status = 'stopped';
                 } else {
                     // Data expired, clear it
                     localStorage.removeItem(key);
@@ -184,13 +190,21 @@ class RolltainerTracker {
                     this.runningAverage = 0;
                     this.seconds = 0;
                     this.sessionCount = 0;
+                    this.status = 'stopped';
                 }
             } catch (e) {
                 console.error('Error loading data:', e);
+                this.history = [];
+                this.totalCompleted = 0;
+                this.runningAverage = 0;
+                this.seconds = 0;
+                this.sessionCount = 0;
+                this.status = 'stopped';
             }
         }
         this.updateUI();
         this.updateTimerDisplay();
+        this.enableButtons(false);
     }
     
     saveUserData() {
@@ -209,6 +223,7 @@ class RolltainerTracker {
     
     cleanExpiredData() {
         // Clean up expired user data from localStorage
+        const keysToRemove = [];
         for (let i = 0; i < localStorage.length; i++) {
             const key = localStorage.key(i);
             if (key && key.startsWith('rolltainer_data_')) {
@@ -216,14 +231,14 @@ class RolltainerTracker {
                     const data = JSON.parse(localStorage.getItem(key));
                     const now = Date.now();
                     if (now - data.timestamp >= this.dataExpiry) {
-                        localStorage.removeItem(key);
+                        keysToRemove.push(key);
                     }
                 } catch (e) {
-                    // If can't parse, remove it
-                    localStorage.removeItem(key);
+                    keysToRemove.push(key);
                 }
             }
         }
+        keysToRemove.forEach(key => localStorage.removeItem(key));
     }
     
     // ==================== TIMER FUNCTIONS ====================
@@ -270,7 +285,7 @@ class RolltainerTracker {
     
     complete() {
         if (this.status === 'running' || this.status === 'paused') {
-            // STOP THE TIMER - FIXED!
+            // STOP THE TIMER
             if (this.timerInterval) {
                 clearInterval(this.timerInterval);
                 this.timerInterval = null;

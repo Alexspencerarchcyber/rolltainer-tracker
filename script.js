@@ -244,23 +244,30 @@ class RolltainerTracker {
     // ==================== TIMER FUNCTIONS ====================
     
     start() {
+        // Only allow start if stopped, completed, or paused
         if (this.status === 'stopped' || this.status === 'completed' || this.status === 'paused') {
-            this.status = 'running';
             
+            // If starting fresh from stopped or completed, reset everything
             if (this.status === 'stopped' || this.status === 'completed') {
-                this.sessionCount = 1;
                 this.seconds = 0;
+                this.sessionCount = 1;
                 this.startTime = Date.now();
             }
             
-            // Start timer
-            if (!this.timerInterval) {
-                this.timerInterval = setInterval(() => {
-                    this.seconds++;
-                    this.updateTimerDisplay();
-                    this.checkTimerGoal();
-                }, 1000);
+            this.status = 'running';
+            
+            // Clear any existing interval before starting a new one
+            if (this.timerInterval) {
+                clearInterval(this.timerInterval);
+                this.timerInterval = null;
             }
+            
+            // Start the timer interval
+            this.timerInterval = setInterval(() => {
+                this.seconds++;
+                this.updateTimerDisplay();
+                this.checkTimerGoal();
+            }, 1000);
             
             this.enableButtons(true);
             this.updateUI();
@@ -272,10 +279,13 @@ class RolltainerTracker {
     pause() {
         if (this.status === 'running') {
             this.status = 'paused';
+            
+            // Clear the interval to stop the timer
             if (this.timerInterval) {
                 clearInterval(this.timerInterval);
                 this.timerInterval = null;
             }
+            
             this.enableButtons(true);
             this.updateUI();
             this.addHistory(`Paused session (${this.getTypeLabel(this.currentType)})`);
@@ -285,28 +295,33 @@ class RolltainerTracker {
     
     complete() {
         if (this.status === 'running' || this.status === 'paused') {
-            // STOP THE TIMER
+            
+            // CRITICAL: Stop the timer completely
             if (this.timerInterval) {
                 clearInterval(this.timerInterval);
                 this.timerInterval = null;
             }
             
+            // Save the time for history before resetting
+            const timeStr = this.formatTime(this.seconds);
+            
+            // Update stats
             this.totalCompleted++;
             this.sessionCount++;
             this.status = 'completed';
             
-            // Save the time for history before resetting
-            const timeStr = this.formatTime(this.seconds);
-            
-            // RESET THE TIMER TO ZERO
+            // Reset timer to 0
             this.seconds = 0;
             
             // Update running average
             this.calculateRunningAverage();
             
+            // Update UI
             this.enableButtons(false);
             this.updateUI();
-            this.updateTimerDisplay(); // This updates the display to 00:00
+            this.updateTimerDisplay();
+            
+            // Add to history
             this.addHistory(
                 `Completed #${this.totalCompleted} | ${this.getTypeLabel(this.currentType)} | Time: ${timeStr}`
             );
@@ -321,8 +336,11 @@ class RolltainerTracker {
             this.status = 'stopped';
             this.sessionCount = 0;
             
-            // Stop timer
-            this.stopTimer();
+            // Stop the timer
+            if (this.timerInterval) {
+                clearInterval(this.timerInterval);
+                this.timerInterval = null;
+            }
             this.seconds = 0;
             
             this.enableButtons(false);
@@ -334,6 +352,7 @@ class RolltainerTracker {
     }
     
     stopTimer() {
+        // Helper to stop timer
         if (this.timerInterval) {
             clearInterval(this.timerInterval);
             this.timerInterval = null;

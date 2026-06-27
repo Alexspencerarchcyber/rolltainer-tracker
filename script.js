@@ -1,6 +1,6 @@
 class RolltainerTracker {
     constructor() {
-        this.status = 'stopped'; // stopped, running, paused, completed
+        this.status = 'stopped';
         this.sessionCount = 0;
         this.totalCompleted = 0;
         this.history = [];
@@ -9,11 +9,19 @@ class RolltainerTracker {
         this.timerInterval = null;
         this.seconds = 0;
         this.startTime = null;
+        this.currentUser = null;
+        this.dataExpiry = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
         
-        // Load saved data from localStorage
-        this.loadData();
+        // DOM elements - Login
+        this.loginScreen = document.getElementById('loginScreen');
+        this.mainApp = document.getElementById('mainApp');
+        this.usernameInput = document.getElementById('usernameInput');
+        this.loginBtn = document.getElementById('loginBtn');
+        this.currentUserDisplay = document.getElementById('currentUserDisplay');
+        this.welcomeName = document.getElementById('welcomeName');
+        this.logoutBtn = document.getElementById('logoutBtn');
         
-        // DOM elements
+        // DOM elements - Main app
         this.statusEl = document.getElementById('status');
         this.totalCompletedEl = document.getElementById('totalCompleted');
         this.runningAvgEl = document.getElementById('runningAvg');
@@ -33,7 +41,17 @@ class RolltainerTracker {
         this.exportHistoryBtn = document.getElementById('exportHistoryBtn');
         this.typeDropdown = document.getElementById('rolltainerType');
         
-        // Bind event listeners
+        // Check if user is already logged in
+        this.checkAutoLogin();
+        
+        // Bind login events
+        this.loginBtn.addEventListener('click', () => this.login());
+        this.usernameInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') this.login();
+        });
+        this.logoutBtn.addEventListener('click', () => this.logout());
+        
+        // Bind main app events
         this.startBtn.addEventListener('click', () => this.start());
         this.pauseBtn.addEventListener('click', () => this.pause());
         this.completeBtn.addEventListener('click', () => this.complete());
@@ -64,18 +82,158 @@ class RolltainerTracker {
                 }
             }
         });
+    }
+    
+    // ==================== LOGIN SYSTEM ====================
+    
+    login() {
+        const name = this.usernameInput.value.trim();
+        if (!name) {
+            this.usernameInput.style.borderColor = '#fc8181';
+            this.usernameInput.placeholder = 'Please enter your name!';
+            setTimeout(() => {
+                this.usernameInput.style.borderColor = '#e2e8f0';
+                this.usernameInput.placeholder = 'Enter your name...';
+            }, 2000);
+            return;
+        }
         
-        // Update UI
+        this.currentUser = name;
+        this.saveUserSession(name);
+        this.showMainApp(name);
+        this.loadUserData(name);
+    }
+    
+    logout() {
+        if (confirm(`Logout ${this.currentUser}? Your data will be saved.`)) {
+            this.currentUser = null;
+            localStorage.removeItem('rolltainer_user');
+            this.loginScreen.style.display = 'flex';
+            this.mainApp.style.display = 'none';
+            this.usernameInput.value = '';
+            this.stopTimer();
+            this.status = 'stopped';
+            this.sessionCount = 0;
+            this.seconds = 0;
+        }
+    }
+    
+    checkAutoLogin() {
+        const savedUser = localStorage.getItem('rolltainer_user');
+        if (savedUser) {
+            const userData = JSON.parse(savedUser);
+            const now = Date.now();
+            
+            // Check if session is still valid (24 hours)
+            if (now - userData.timestamp < this.dataExpiry) {
+                this.currentUser = userData.name;
+                this.showMainApp(userData.name);
+                this.loadUserData(userData.name);
+                return;
+            } else {
+                // Session expired, clear old data
+                localStorage.removeItem('rolltainer_user');
+                // Clean up expired user data
+                this.cleanExpiredData();
+            }
+        }
+        this.loginScreen.style.display = 'flex';
+        this.mainApp.style.display = 'none';
+    }
+    
+    saveUserSession(name) {
+        localStorage.setItem('rolltainer_user', JSON.stringify({
+            name: name,
+            timestamp: Date.now()
+        }));
+    }
+    
+    showMainApp(name) {
+        this.loginScreen.style.display = 'none';
+        this.mainApp.style.display = 'block';
+        this.currentUserDisplay.textContent = `👤 ${name}`;
+        this.welcomeName.textContent = name;
+    }
+    
+    // ==================== DATA MANAGEMENT ====================
+    
+    getStorageKey() {
+        return `rolltainer_data_${this.currentUser}`;
+    }
+    
+    loadUserData(name) {
+        const key = `rolltainer_data_${name}`;
+        const saved = localStorage.getItem(key);
+        if (saved) {
+            try {
+                const data = JSON.parse(saved);
+                const now = Date.now();
+                
+                // Check if data is expired (24 hours)
+                if (now - data.timestamp < this.dataExpiry) {
+                    this.history = data.history || [];
+                    this.totalCompleted = data.totalCompleted || 0;
+                    this.runningAverage = data.runningAverage || 0;
+                    this.seconds = data.seconds || 0;
+                    this.sessionCount = data.sessionCount || 0;
+                } else {
+                    // Data expired, clear it
+                    localStorage.removeItem(key);
+                    this.history = [];
+                    this.totalCompleted = 0;
+                    this.runningAverage = 0;
+                    this.seconds = 0;
+                    this.sessionCount = 0;
+                }
+            } catch (e) {
+                console.error('Error loading data:', e);
+            }
+        }
         this.updateUI();
         this.updateTimerDisplay();
     }
     
+    saveUserData() {
+        if (!this.currentUser) return;
+        const key = this.getStorageKey();
+        const data = {
+            history: this.history,
+            totalCompleted: this.totalCompleted,
+            runningAverage: this.runningAverage,
+            seconds: this.seconds,
+            sessionCount: this.sessionCount,
+            timestamp: Date.now()
+        };
+        localStorage.setItem(key, JSON.stringify(data));
+    }
+    
+    cleanExpiredData() {
+        // Clean up expired user data from localStorage
+        for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (key && key.startsWith('rolltainer_data_')) {
+                try {
+                    const data = JSON.parse(localStorage.getItem(key));
+                    const now = Date.now();
+                    if (now - data.timestamp >= this.dataExpiry) {
+                        localStorage.removeItem(key);
+                    }
+                } catch (e) {
+                    // If can't parse, remove it
+                    localStorage.removeItem(key);
+                }
+            }
+        }
+    }
+    
+    // ==================== TIMER FUNCTIONS ====================
+    
     start() {
-        if (this.status === 'stopped' || this.status === 'completed') {
+        if (this.status === 'stopped' || this.status === 'completed' || this.status === 'paused') {
             this.status = 'running';
-            this.sessionCount = 1;
             
-            if (this.status === 'stopped') {
+            if (this.status === 'stopped' || this.status === 'completed') {
+                this.sessionCount = 1;
                 this.seconds = 0;
                 this.startTime = Date.now();
             }
@@ -92,12 +250,7 @@ class RolltainerTracker {
             this.enableButtons(true);
             this.updateUI();
             this.addHistory(`Started session (${this.getTypeLabel(this.currentType)})`);
-        } else if (this.status === 'paused') {
-            this.status = 'running';
-            this.startTime = Date.now() - (this.seconds * 1000);
-            this.enableButtons(true);
-            this.updateUI();
-            this.addHistory(`Resumed session (${this.getTypeLabel(this.currentType)})`);
+            this.saveUserData();
         }
     }
     
@@ -111,20 +264,21 @@ class RolltainerTracker {
             this.enableButtons(true);
             this.updateUI();
             this.addHistory(`Paused session (${this.getTypeLabel(this.currentType)})`);
+            this.saveUserData();
         }
     }
     
     complete() {
         if (this.status === 'running' || this.status === 'paused') {
-            this.totalCompleted++;
-            this.sessionCount++;
-            this.status = 'completed';
-            
-            // Stop timer
+            // STOP THE TIMER - FIXED!
             if (this.timerInterval) {
                 clearInterval(this.timerInterval);
                 this.timerInterval = null;
             }
+            
+            this.totalCompleted++;
+            this.sessionCount++;
+            this.status = 'completed';
             
             // Update running average
             this.calculateRunningAverage();
@@ -137,7 +291,7 @@ class RolltainerTracker {
             this.addHistory(
                 `Completed #${this.totalCompleted} | ${this.getTypeLabel(this.currentType)} | Time: ${timeStr}`
             );
-            this.saveData();
+            this.saveUserData();
             
             // Auto-start after 2 seconds
             setTimeout(() => {
@@ -154,19 +308,25 @@ class RolltainerTracker {
             this.sessionCount = 0;
             
             // Stop timer
-            if (this.timerInterval) {
-                clearInterval(this.timerInterval);
-                this.timerInterval = null;
-            }
+            this.stopTimer();
             this.seconds = 0;
             
             this.enableButtons(false);
             this.updateUI();
             this.updateTimerDisplay();
             this.addHistory(`Stopped session (${this.getTypeLabel(this.currentType)})`);
-            this.saveData();
+            this.saveUserData();
         }
     }
+    
+    stopTimer() {
+        if (this.timerInterval) {
+            clearInterval(this.timerInterval);
+            this.timerInterval = null;
+        }
+    }
+    
+    // ==================== UI FUNCTIONS ====================
     
     calculateRunningAverage() {
         if (this.history.length > 0) {
@@ -198,10 +358,14 @@ class RolltainerTracker {
             this.timerStatus.textContent = '✅ On Track!';
             this.timerStatus.className = 'goal-value status-badge on-track';
             this.progressRing.style.stroke = '#48bb78';
-        } else {
+        } else if (this.status === 'running' || this.status === 'paused') {
             this.timerStatus.textContent = '⏳ In Progress';
             this.timerStatus.className = 'goal-value status-badge';
             this.progressRing.style.stroke = '#4299e1';
+        } else {
+            this.timerStatus.textContent = '⏹ Not Started';
+            this.timerStatus.className = 'goal-value status-badge';
+            this.progressRing.style.stroke = '#e2e8f0';
         }
         
         // Update progress ring
@@ -235,19 +399,6 @@ class RolltainerTracker {
         return types[value] || value;
     }
     
-    getTypeEmoji(value) {
-        const emojis = {
-            'meds': '💊',
-            'food': '🍎',
-            'dollar': '💰',
-            'chem': '🧪',
-            'sweets': '🍬',
-            'toiletpaper': '🧻',
-            'other': '📦'
-        };
-        return emojis[value] || '📦';
-    }
-    
     enableButtons(isActive) {
         const isRunning = this.status === 'running';
         const isPaused = this.status === 'paused';
@@ -259,7 +410,6 @@ class RolltainerTracker {
         this.completeBtn.disabled = !(isRunning || isPaused);
         this.stopBtn.disabled = isStopped;
         
-        // Update button texts
         if (isStopped || isCompleted) {
             this.startBtn.textContent = '▶ Start';
         } else if (isPaused) {
@@ -270,7 +420,6 @@ class RolltainerTracker {
     }
     
     updateUI() {
-        // Update status display
         const statusText = this.status.charAt(0).toUpperCase() + this.status.slice(1);
         const statusEmojis = {
             'stopped': '⏹',
@@ -281,13 +430,11 @@ class RolltainerTracker {
         this.statusEl.textContent = `${statusEmojis[this.status] || '⏹'} ${statusText}`;
         this.statusEl.className = 'status-indicator ' + this.status;
         
-        // Update stats
         this.totalCompletedEl.textContent = this.totalCompleted;
         this.runningAvgEl.textContent = this.runningAverage.toFixed(1);
         this.sessionCountEl.textContent = this.sessionCount;
         this.currentTypeEl.textContent = this.getTypeLabel(this.currentType);
         
-        // Update history display
         this.renderHistory();
     }
     
@@ -298,10 +445,8 @@ class RolltainerTracker {
             return;
         }
         
-        // Show last 30 items
         const items = this.history.slice(-30);
         this.historyListEl.innerHTML = items.map(item => {
-            // Check if it's a completion entry to extract type
             let typeBadge = '';
             if (item.action.includes('Completed')) {
                 const typeMatch = item.action.match(/\| (💊\s?Meds|🍎\s?Food|💰\s?Dollar|🧪\s?Chem|🍬\s?Sweets|🧻\s?Toilet Paper|📦\s?Other)/);
@@ -322,8 +467,6 @@ class RolltainerTracker {
         }).join('');
         
         this.historyCountEl.textContent = `${this.history.length} entries`;
-        
-        // Auto-scroll to bottom
         this.historyListEl.scrollTop = this.historyListEl.scrollHeight;
     }
     
@@ -335,18 +478,15 @@ class RolltainerTracker {
     
     clearHistory() {
         if (this.history.length === 0) return;
-        if (confirm('Are you sure you want to clear all history?')) {
+        if (confirm(`Clear all history for ${this.currentUser}?`)) {
             this.history = [];
             this.totalCompleted = 0;
             this.runningAverage = 0;
-            this.status = 'stopped';
             this.sessionCount = 0;
             this.seconds = 0;
-            if (this.timerInterval) {
-                clearInterval(this.timerInterval);
-                this.timerInterval = null;
-            }
-            this.saveData();
+            this.stopTimer();
+            this.status = 'stopped';
+            this.saveUserData();
             this.updateUI();
             this.updateTimerDisplay();
             this.enableButtons(false);
@@ -359,7 +499,8 @@ class RolltainerTracker {
             return;
         }
         
-        let csv = 'Action,Timestamp\n';
+        let csv = `Rolltainer Tracker History - ${this.currentUser}\n`;
+        csv += `Action,Timestamp\n`;
         this.history.forEach(item => {
             csv += `"${item.action}","${item.timestamp}"\n`;
         });
@@ -368,34 +509,9 @@ class RolltainerTracker {
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `rolltainer_history_${new Date().toISOString().slice(0,10)}.csv`;
+        a.download = `rolltainer_history_${this.currentUser}_${new Date().toISOString().slice(0,10)}.csv`;
         a.click();
         window.URL.revokeObjectURL(url);
-    }
-    
-    saveData() {
-        const data = {
-            history: this.history,
-            totalCompleted: this.totalCompleted,
-            runningAverage: this.runningAverage,
-            seconds: this.seconds
-        };
-        localStorage.setItem('rolltainerData', JSON.stringify(data));
-    }
-    
-    loadData() {
-        const saved = localStorage.getItem('rolltainerData');
-        if (saved) {
-            try {
-                const data = JSON.parse(saved);
-                this.history = data.history || [];
-                this.totalCompleted = data.totalCompleted || 0;
-                this.runningAverage = data.runningAverage || 0;
-                this.seconds = data.seconds || 0;
-            } catch (e) {
-                console.error('Error loading saved data:', e);
-            }
-        }
     }
 }
 

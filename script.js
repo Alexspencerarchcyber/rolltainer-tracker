@@ -244,6 +244,9 @@ class RolltainerTracker {
     // ==================== TIMER FUNCTIONS ====================
     
     start() {
+        console.log('Start called. Current status:', this.status);
+        console.log('Timer interval before start:', this.timerInterval);
+        
         // Only allow start if stopped, completed, or paused
         if (this.status === 'stopped' || this.status === 'completed' || this.status === 'paused') {
             
@@ -252,19 +255,23 @@ class RolltainerTracker {
                 this.seconds = 0;
                 this.sessionCount = 1;
                 this.startTime = Date.now();
+                console.log('Fresh start - resetting seconds to 0');
             }
             
             this.status = 'running';
             
-            // Clear any existing interval before starting a new one
+            // CRITICAL: Clear any existing interval before starting a new one
             if (this.timerInterval) {
+                console.log('Clearing existing interval');
                 clearInterval(this.timerInterval);
                 this.timerInterval = null;
             }
             
+            console.log('Starting new timer interval');
             // Start the timer interval
             this.timerInterval = setInterval(() => {
                 this.seconds++;
+                console.log('Timer tick:', this.seconds);
                 this.updateTimerDisplay();
                 this.checkTimerGoal();
             }, 1000);
@@ -273,15 +280,20 @@ class RolltainerTracker {
             this.updateUI();
             this.addHistory(`Started session (${this.getTypeLabel(this.currentType)})`);
             this.saveUserData();
+            console.log('Start complete. Status:', this.status, 'Interval:', this.timerInterval);
+        } else {
+            console.log('Start blocked. Status is:', this.status);
         }
     }
     
     pause() {
+        console.log('Pause called. Current status:', this.status);
         if (this.status === 'running') {
             this.status = 'paused';
             
-            // Clear the interval to stop the timer
+            // CRITICAL: Clear the interval to stop the timer
             if (this.timerInterval) {
+                console.log('Pausing - clearing interval');
                 clearInterval(this.timerInterval);
                 this.timerInterval = null;
             }
@@ -290,20 +302,28 @@ class RolltainerTracker {
             this.updateUI();
             this.addHistory(`Paused session (${this.getTypeLabel(this.currentType)})`);
             this.saveUserData();
+            console.log('Pause complete. Status:', this.status, 'Interval:', this.timerInterval);
         }
     }
     
     complete() {
+        console.log('Complete called. Current status:', this.status);
+        console.log('Timer interval before complete:', this.timerInterval);
+        console.log('Seconds before complete:', this.seconds);
+        
         if (this.status === 'running' || this.status === 'paused') {
             
             // CRITICAL: Stop the timer completely
             if (this.timerInterval) {
+                console.log('Complete - clearing interval');
                 clearInterval(this.timerInterval);
                 this.timerInterval = null;
+                console.log('Interval cleared. Now:', this.timerInterval);
             }
             
             // Save the time for history before resetting
             const timeStr = this.formatTime(this.seconds);
+            console.log('Time recorded for history:', timeStr);
             
             // Update stats
             this.totalCompleted++;
@@ -312,6 +332,7 @@ class RolltainerTracker {
             
             // Reset timer to 0
             this.seconds = 0;
+            console.log('Seconds reset to 0');
             
             // Update running average
             this.calculateRunningAverage();
@@ -327,17 +348,23 @@ class RolltainerTracker {
             );
             this.saveUserData();
             
+            console.log('Complete finished. Status:', this.status, 'Interval:', this.timerInterval, 'Seconds:', this.seconds);
+            
             // NO AUTO-START - User must click Start manually
+        } else {
+            console.log('Complete blocked. Status is:', this.status);
         }
     }
     
     stop() {
+        console.log('Stop called. Current status:', this.status);
         if (this.status !== 'stopped') {
             this.status = 'stopped';
             this.sessionCount = 0;
             
             // Stop the timer
             if (this.timerInterval) {
+                console.log('Stop - clearing interval');
                 clearInterval(this.timerInterval);
                 this.timerInterval = null;
             }
@@ -348,12 +375,15 @@ class RolltainerTracker {
             this.updateTimerDisplay();
             this.addHistory(`Stopped session (${this.getTypeLabel(this.currentType)})`);
             this.saveUserData();
+            console.log('Stop complete. Status:', this.status);
         }
     }
     
     stopTimer() {
         // Helper to stop timer
+        console.log('stopTimer helper called');
         if (this.timerInterval) {
+            console.log('stopTimer - clearing interval');
             clearInterval(this.timerInterval);
             this.timerInterval = null;
         }

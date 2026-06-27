@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rolltainer Tracker Pro</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Header with Image -->
+        <div class="header">
+            <div class="logo-section">
+                <img src="https://cdn-icons-png.flaticon.com/512/3081/3081559.png" alt="Rolltainer" class="logo-img">
+                <h1>📦 Rolltainer Tracker</h1>
+            </div>
+            <p class="subtitle">Efficiently track your rolltainer processing</p>
+        </div>
+
+        <!-- Timer and Status -->
+        <div class="timer-section">
+            <div class="timer-display">
+                <div class="timer-ring">
+                    <svg class="progress-ring" width="120" height="120">
+                        <circle class="progress-ring-bg" stroke="#e0e0e0" stroke-width="8" fill="transparent" r="52" cx="60" cy="60"/>
+                        <circle class="progress-ring-fill" stroke="#4CAF50" stroke-width="8" fill="transparent" r="52" cx="60" cy="60"
+                                stroke-dasharray="326.726" stroke-dashoffset="326.726"/>
+                    </svg>
+                    <div class="timer-text">
+                        <span id="timerDisplay">00:00</span>
+                        <span class="timer-label">Time Elapsed</span>
+                    </div>
+                </div>
+                <div class="goal-info">
+                    <div class="goal-item">
+                        <span class="goal-label">🎯 Target:</span>
+                        <span class="goal-value">45-60 min</span>
+                    </div>
+                    <div class="goal-item">
+                        <span class="goal-label">⏱ Status:</span>
+                        <span id="timerStatus" class="goal-value status-badge">Not Started</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Status Display -->
+        <div class="status-display">
+            <div class="status-box">
+                <h3>Current Status</h3>
+                <div id="status" class="status-indicator stopped">⏹ Stopped</div>
+            </div>
+            <div class="stats-box">
+                <div class="stat-item">
+                    <span class="stat-label">✅ Total Completed:</span>
+                    <span id="totalCompleted" class="stat-value">0</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">📊 Running Average:</span>
+                    <span id="runningAvg" class="stat-value">0.0</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">🔄 Current Session:</span>
+                    <span id="sessionCount" class="stat-value">0</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">📝 Type:</span>
+                    <span id="currentType" class="stat-value">-</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Controls -->
+        <div class="controls">
+            <div class="control-row">
+                <button id="startBtn" class="btn btn-start">▶ Start</button>
+                <button id="pauseBtn" class="btn btn-pause" disabled>⏸ Pause</button>
+                <button id="completeBtn" class="btn btn-complete" disabled>✅ Complete</button>
+                <button id="stopBtn" class="btn btn-stop" disabled>⏹ Stop</button>
+            </div>
+            
+            <!-- Dropdown for Rolltainer Type -->
+            <div class="type-selector">
+                <label for="rolltainerType">📋 Select Rolltainer Type:</label>
+                <select id="rolltainerType" class="type-dropdown">
+                    <option value="meds">💊 Meds</option>
+                    <option value="food">🍎 Food</option>
+                    <option value="dollar">💰 Dollar</option>
+                    <option value="chem">🧪 Chem</option>
+                    <option value="sweets">🍬 Sweets</option>
+                    <option value="toiletpaper">🧻 Toilet Paper</option>
+                    <option value="other">📦 Other</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- History Section -->
+        <div class="history-section">
+            <div class="history-header">
+                <h3>📜 History</h3>
+                <span class="history-count" id="historyCount">0 entries</span>
+            </div>
+            <div id="historyList" class="history-list">
+                <p class="empty-message">No sessions recorded yet</p>
+            </div>
+            <div class="history-actions">
+                <button id="clearHistoryBtn" class="btn btn-clear">🗑 Clear History</button>
+                <button id="exportHistoryBtn" class="btn btn-export">📤 Export CSV</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

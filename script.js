@@ -295,25 +295,24 @@ class RolltainerTracker {
             this.sessionCount++;
             this.status = 'completed';
             
+            // Save the time for history before resetting
+            const timeStr = this.formatTime(this.seconds);
+            
+            // RESET THE TIMER TO ZERO
+            this.seconds = 0;
+            
             // Update running average
             this.calculateRunningAverage();
             
-            // Format time
-            const timeStr = this.formatTime(this.seconds);
-            
             this.enableButtons(false);
             this.updateUI();
+            this.updateTimerDisplay(); // This updates the display to 00:00
             this.addHistory(
                 `Completed #${this.totalCompleted} | ${this.getTypeLabel(this.currentType)} | Time: ${timeStr}`
             );
             this.saveUserData();
             
-            // Auto-start after 2 seconds
-            setTimeout(() => {
-                if (this.status === 'completed') {
-                    this.start();
-                }
-            }, 2000);
+            // NO AUTO-START - User must click Start manually
         }
     }
     
